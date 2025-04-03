@@ -1,0 +1,18 @@
+{
+  "name": "redis-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/index.js",
+  "scripts": {
+    "start:dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "clean": "rimraf dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2"
+  }
+}
