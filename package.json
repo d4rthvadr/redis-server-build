@@ -6,6 +6,7 @@
   "scripts": {
     "start:dev": "ts-node src/server.ts",
     "build": "tsc",
+    "test": "ts-node ./src/tests/server.test.ts",
     "clean": "rimraf dist"
   },
   "keywords": [],
