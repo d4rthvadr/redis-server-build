@@ -2,10 +2,10 @@ import { logger } from "./logger";
 
 const log = logger("core");
 
-const store: Record<string, unknown> = {};
+const store: Record<string, { type: string; value: unknown }> = {};
 const expirationTimes: Record<string, number> = {};
 
-type Commands = "SET" | "GET" | "DELETE" | "COMMAND";
+type Commands = "SET" | "GET" | "DELETE" | "EXPIRE" | "COMMAND";
 type CommandHandlers = Record<Commands, (args: string[]) => string>;
 
 const isExpired = (key: string): boolean =>
@@ -28,8 +28,12 @@ const commandHandlers: CommandHandlers = {
     }
     const [key, value] = args;
 
+    if (typeof value !== "string") {
+      return "-ERR value must be a string\r\n";
+    }
+
     log.info(`Setting ${key} to ${value}`);
-    store[key] = value;
+    store[key] = { type: "string", value };
 
     return "+OK\r\n";
   },
@@ -41,11 +45,11 @@ const commandHandlers: CommandHandlers = {
 
     log.info(`Getting value for ${key}`);
 
-    if (checkExpiry(key) || !store[key] || typeof store[key] === "string") {
+    if (checkExpiry(key) || !store[key] || store[key].type !== "string") {
       return "$-1\r\n";
     }
 
-    const value = store[key]?.toString();
+    const value = store[key].value as string;
 
     return `$${value.length}\r\n${value}\r\n`;
   },
@@ -63,6 +67,16 @@ const commandHandlers: CommandHandlers = {
       return `:1\r\n`;
     }
     return `:0\r\n`;
+  },
+  EXPIRE: (args: string[]) => {
+    if (args.length < 2) {
+      return "-ERR wrong number of arguments for 'expire' command\r\n";
+    }
+    const [key, seconds] = args;
+    const expirationTime = parseInt(seconds, 10) * 1000 + Date.now();
+    log.info(`Setting expiration for ${key} to ${expirationTime}`);
+    expirationTimes[key] = expirationTime;
+    return "+OK\r\n";
   },
   COMMAND: (args: string[]) => "+OK\r\n",
 };
