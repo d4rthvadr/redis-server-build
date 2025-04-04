@@ -11,6 +11,14 @@ type CommandHandlers = Record<Commands, (args: string[]) => string>;
 const isExpired = (key: string): boolean =>
   !!expirationTimes[key] && expirationTimes[key] < Date.now();
 
+/**
+ * Checks if a given key has expired in the store.
+ * If the key is expired, it removes the key from both the store and the expiration times,
+ * and returns `true`. Otherwise, it returns `false`.
+ *
+ * @param key - The key to check for expiration.
+ * @returns `true` if the key was expired and removed, otherwise `false`.
+ */
 const checkExpiry = (key: string) => {
   if (isExpired(key)) {
     delete store[key];
@@ -81,6 +89,14 @@ const commandHandlers: CommandHandlers = {
   COMMAND: (args: string[]) => "+OK\r\n",
 };
 
+/**
+ * Executes a given command by looking up the appropriate handler and passing the arguments to it.
+ *
+ * @param command - The name of the command to execute.
+ * @param args - An array of arguments to pass to the command handler.
+ * @returns The result of the command execution as a string. If the command is unknown,
+ *          returns an error message in the format `-ERR unknown command <command>\r\n`.
+ */
 const executeCommand = (command: string, args: string[]): string => {
   log.info(`Received command: ${command} with args: ${args}`);
 
@@ -92,6 +108,28 @@ const executeCommand = (command: string, args: string[]): string => {
   return handler(args);
 };
 
+/**
+ * Parses a Redis command string into its command and arguments.
+ *
+ * @param data - The raw string data received, typically from a Redis client.
+ *               The string is expected to follow the RESP (REdis Serialization Protocol) format.
+ *
+ * @returns An object containing:
+ *          - `command`: The parsed command in uppercase.
+ *          - `args`: An array of arguments associated with the command.
+ *
+ * @example
+ * ```typescript
+ * const input = "*3\r\n$3\r\nSET\r\n$5\r\nmykey\r\n$7\r\nmyvalue\r\n";
+ * const result = parseCommand(input);
+ * console.log(result);
+ * // Output:
+ * // {
+ * //   command: "SET",
+ * //   args: ["mykey", "myvalue"]
+ * // }
+ * ```
+ */
 const parseCommand = (data: string) => {
   const lines = data
     .toString()
