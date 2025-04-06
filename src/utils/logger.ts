@@ -2,7 +2,7 @@ const debugNamespaces = (process.env.DEBUG || "*")
   .split(",")
   .map((ns) => ns.trim());
 
-type LogLevel = "log" | "info" | "debug" | "warn" | "error";
+type LogLevel = "info" | "debug" | "warn" | "error";
 
 type Logger = {
   [key in LogLevel]: (...message: unknown[]) => void;
@@ -14,16 +14,6 @@ type Logger = {
  * @param namespace - The namespace to associate with the logger.
  * @returns A `Logger` object with methods for logging messages at various levels.
  *
- * The logger provides the following methods:
- * - `log`: Logs a general message.
- * - `info`: Logs an informational message.
- * - `debug`: Logs a debug message.
- * - `error`: Logs an error message.
- * - `warn`: Logs a warning message.
- *
- * The logger formats messages with a timestamp, log level, and namespace.
- * Messages are conditionally logged based on the `debugNamespaces` array.
- * If the log level is "error", the message is always logged to `console.error`.
  */
 const logger = (namespace: string): Logger => {
   const log = (mode: LogLevel, ...message: unknown[]) => {
@@ -43,7 +33,6 @@ const logger = (namespace: string): Logger => {
   };
 
   return {
-    log: (...message) => log("log", ...message),
     info: (...message) => log("info", ...message),
     debug: (...message) => log("debug", ...message),
     error: (...message) => log("error", ...message),

@@ -4,9 +4,10 @@
   "description": "",
   "main": "./dist/index.js",
   "scripts": {
+    "start": "node  --watch dist/server.js",
     "start:dev": "ts-node src/server.ts",
     "build": "tsc",
-    "test": "ts-node ./src/tests/server.test.ts",
+    "test": "ts-node tests/server.test.ts",
     "clean": "rimraf dist"
   },
   "keywords": [],
