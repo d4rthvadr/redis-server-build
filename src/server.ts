@@ -1,6 +1,6 @@
 import net from "net";
-import { logger } from "./logger";
-import { executeCommand, parseCommand } from "./core";
+import { logger } from "./utils/logger";
+import { executeCommand, init, parseCommand } from "./core";
 
 const port: number = 6379;
 const hostname: string = "127.0.0.1";
@@ -36,5 +36,6 @@ server.on("connection", (socket: net.Socket) => {
 });
 
 server.listen(port, hostname, () => {
+  init();
   log.info(`Server running at http://${hostname}:${port}`);
 });
