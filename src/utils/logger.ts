@@ -16,7 +16,7 @@ type Logger = {
  *
  */
 const logger = (namespace: string): Logger => {
-  const log = (mode: LogLevel, ...message: unknown[]) => {
+  const log = <T>(mode: LogLevel, ...message: T[]) => {
     const logMessage: string = `${new Date().toISOString()} ${mode} [${namespace}]: ${message}`;
 
     if (mode === "error") {

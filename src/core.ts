@@ -2,8 +2,11 @@ import { logger } from "./utils/logger";
 
 const log = logger("core");
 
-const store: Record<string, { type: string; value: unknown }> = {};
-const expirationTimes: Record<string, number> = {};
+import config from "./config.json";
+
+import { persistence } from "./persistence";
+
+const { store, expirationTimes } = persistence;
 
 type Commands =
   | "SET"
@@ -337,9 +340,23 @@ const parseCommand = (data: string) => {
   };
 };
 
+const handleSnapshot = () => {
+  log.info("Snapshot mode is enabled");
+  persistence.loadSnapshotSync();
+
+  setInterval(() => {
+    persistence.saveSnapshotAsync();
+  }, config.snapshotInterval);
+
+  log.info("Snapshot interval set to", config.snapshotInterval, "ms");
+};
+
 const init = () => {
-  log.info("Initializing core module");
-  // Initialize any necessary resources or configurations here
+  if (config.snapshot) {
+    handleSnapshot();
+  } else if (config.appendOnly) {
+    log.info("Append only mode is enabled");
+  }
 };
 
 export { parseCommand, executeCommand, init };
