@@ -8,6 +8,12 @@ import { persistence } from "./persistence";
 
 const { store, expirationTimes } = persistence;
 
+export type ExecuteCommand = (
+  command: string,
+  args: string[],
+  appendOnly?: boolean
+) => string;
+
 type Commands =
   | "SET"
   | "GET"
@@ -289,16 +295,66 @@ const commandHandlers: CommandHandlers = {
  * @returns The result of the command execution as a string. If the command is unknown,
  *          returns an error message in the format `-ERR unknown command <command>\r\n`.
  */
-const executeCommand = (command: string, args: string[]): string => {
-  log.info(`Received command: ${command} with args: ${args}`);
+const executeCommand = (
+  command: string,
+  args: string[],
+  replayFromAOF = false
+): string => {
+  log.info(
+    `Received command: ${command} with args: ${args} replayFromAOF ${replayFromAOF}`
+  );
 
   const handler = commandHandlers[command as Commands];
   if (!handler) {
     return `-ERR unknown command ${command}\r\n`;
   }
 
-  return handler(args);
+  const result = handler(args);
+
+  if (!replayFromAOF) {
+    handlePostExecuteCommand(command, args);
+  }
+
+  return result;
 };
+
+/**
+ * Handles the execution of a command after it has been processed.
+ * If the command should be appended to the Append-Only File (AOF),
+ * it performs the append operation asynchronously and logs the result.
+ * Otherwise, it logs that the command is being skipped.
+ *
+ * @param command - The name of the command to be executed.
+ * @param args - An array of arguments associated with the command.
+ *
+ */
+const handlePostExecuteCommand = (command: string, args: string[]) => {
+  if (shouldAppendToAOF(command)) {
+    persistence
+      .appendAOF(command, args)
+      .then(() => {
+        log.info(`AOF log appended: ${command} ${args}`);
+      })
+      .catch((e: Error | any) => {
+        log.error("Error appending to AOF file:", e?.message);
+      });
+    return;
+  }
+  log.info(`Skipping AOF append for command: ${command}`);
+};
+
+/**
+ * Determines whether a given command should be appended to the Append-Only File (AOF).
+ *
+ * This function checks if the append-only mode is enabled in the configuration
+ * and if the specified command is included in the list of commands that should
+ * be appended to the AOF.
+ *
+ * @param command - The name of the command to check.
+ * @returns `true` if the command should be appended to the AOF, otherwise `false`.
+ */
+const shouldAppendToAOF = (command: string) =>
+  config.appendOnly && config.appendOnlyCmds.includes(command);
 
 /**
  * Parses a Redis command string into its command and arguments.
@@ -340,6 +396,14 @@ const parseCommand = (data: string) => {
   };
 };
 
+/**
+ * Handles the snapshot functionality for the application.
+ *
+ * This function enables snapshot mode, loads the existing snapshot synchronously,
+ * and sets up a recurring interval to save snapshots asynchronously.
+ *
+ * @throws {Error} If there is an issue with loading or saving snapshots.
+ */
 const handleSnapshot = () => {
   log.info("Snapshot mode is enabled");
   persistence.loadSnapshotSync();
@@ -351,11 +415,25 @@ const handleSnapshot = () => {
   log.info("Snapshot interval set to", config.snapshotInterval, "ms");
 };
 
+/**
+ * Initializes the server based on the provided configuration.
+ *
+ * This function determines the persistence mode of the server and performs
+ * the necessary setup. It supports three modes:
+ *
+ * - **Snapshot Mode**: If `config.snapshot` is enabled, it triggers the snapshot handling process.
+ * - **Append-Only Mode**: If `config.appendOnly` is enabled, it logs that the append-only mode is active.
+ * - **In-Memory Mode**: If neither snapshot nor append-only mode is enabled, it defaults to in-memory persistence.
+ *
+ */
 const init = () => {
   if (config.snapshot) {
     handleSnapshot();
   } else if (config.appendOnly) {
     log.info("Append only mode is enabled");
+    persistence.replayAofSync(executeCommand);
+  } else {
+    log.info("Persistence mode: in-memory");
   }
 };
 

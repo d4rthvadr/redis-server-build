@@ -5,10 +5,14 @@ import path from "path";
 type StoreType = Record<string, { type: string; value: unknown }>;
 type StoreExpirationTimes = Record<string, number>;
 
+import config from "./config.json";
+import { ExecuteCommand } from "./core";
+
 const log = logger("persistence");
 
 class Persistence {
   #filePath = path.join(__dirname, "snapshot.ss");
+  #aofPath = path.join(__dirname, "appendonly.aof");
   store: StoreType;
   expirationTimes: StoreExpirationTimes;
 
@@ -54,6 +58,40 @@ class Persistence {
       await fs.promises.writeFile(this.#filePath, data);
     } catch (error) {
       log.error("Error saving snapshot:", error);
+    }
+  }
+
+  async appendAOF(command: string, args: string[]) {
+    let aoflog = `${command} ${args.join(" ")}\r\n`;
+
+    try {
+      await fs.promises.appendFile(this.#aofPath, aoflog);
+      log.info(`AOF log appended: ${aoflog.trim()}`);
+    } catch (e: Error | any) {
+      log.error("Error appending to AOF file:", e?.message);
+    }
+  }
+
+  replayAofSync(executeCommand: ExecuteCommand) {
+    if (!fs.existsSync(this.#aofPath) || !config.appendOnly) {
+      return;
+    }
+
+    try {
+      const data = fs.readFileSync(this.#aofPath, "utf8").toString();
+      if (!data) {
+        log.warn("AOF file is empty.");
+        return;
+      }
+
+      const logs = data.split("\r\n").filter((log) => log.trim() !== "");
+
+      for (const logEntry of logs) {
+        const [command, ...args] = logEntry.split(" ");
+        executeCommand(command, args, true);
+      }
+    } catch (error) {
+      log.error("Error loading AOF file:", error);
     }
   }
 }
