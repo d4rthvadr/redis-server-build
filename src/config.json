@@ -1,5 +1,16 @@
 {
   "snapshot": false,
   "snapshotInterval": 5000,
-  "appendOnly": true
+  "appendOnly": true,
+  "appendOnlyCmds": [
+    "SET",
+    "DEL",
+    "EXPIRE",
+    "INCR",
+    "DECR",
+    "LPUSH",
+    "RPUSH",
+    "LPOP",
+    "RPOP"
+  ]
 }
